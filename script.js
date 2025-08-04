@@ -1,4 +1,5 @@
 import * as THREE from "./libs/three.module.js";
+console.log("THREE is working:");
 import { OrbitControls } from "./libs/OrbitControls.js";
 
 const canvas = document.getElementById("galaxy-canvas");
