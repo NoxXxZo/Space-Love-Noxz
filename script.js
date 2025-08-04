@@ -61,29 +61,61 @@ function start3DScene() {
   light.position.set(0, 0, 50);
   scene.add(light);
 
+  // Planeta brillante central
+  const planetGeometry = new THREE.SphereGeometry(5, 64, 64);
+  const planetMaterial = new THREE.MeshPhongMaterial({
+    color: 0xf5401b,
+    emissive: 0xf5ac1b,
+    shininess: 100,
+  });
+  const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+  scene.add(planet);
+
+  // Luz envolvente para hacer que brille más
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+
   const loader = new THREE.TextureLoader();
-  const totalPhotos = 6;
+  const totalPhotos = 12;
   const orbitRadius = 25;
   const photos = [];
 
   for (let i = 0; i < totalPhotos; i++) {
     const angle = (i / totalPhotos) * Math.PI * 2;
-    const texture = loader.load(`assets/images/foto${i + 1}.jpeg`);
-    const geometry = new THREE.PlaneGeometry(8, 6);
+    const textureIndex = (i % 6) + 1; // Reutiliza las 6 imágenes
+    const texture = loader.load(`assets/images/foto${textureIndex}.jpeg`);
+
+    const geometry = new THREE.PlaneGeometry(5, 3.5); // Más pequeño que antes
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9,
     });
-    const mesh = new THREE.Mesh(geometry, material);
 
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(
       orbitRadius * Math.cos(angle),
-      0,
+      (Math.random() - 0.5) * 2, // pequeña variación vertical
       orbitRadius * Math.sin(angle)
     );
     mesh.lookAt(0, 0, 0);
     scene.add(mesh);
     photos.push(mesh);
+  }
+
+  const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (let i = 0; i < 100; i++) {
+    const star = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 6, 6),
+      starMaterial
+    );
+    star.position.set(
+      (Math.random() - 0.5) * 100,
+      (Math.random() - 0.5) * 50,
+      (Math.random() - 0.5) * 100
+    );
+    scene.add(star);
   }
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -97,9 +129,12 @@ function start3DScene() {
 
     const t = performance.now() * 0.0002;
     photos.forEach((mesh, i) => {
-      const angle = t + i;
+      const angle = t + i * 0.5;
+      const yOffset = mesh.position.y;
+
       mesh.position.x = orbitRadius * Math.cos(angle);
       mesh.position.z = orbitRadius * Math.sin(angle);
+      mesh.position.y = yOffset;
       mesh.lookAt(0, 0, 0);
     });
 
