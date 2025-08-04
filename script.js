@@ -44,6 +44,7 @@ canvas.addEventListener("click", () => {
 
 function start3DScene() {
   const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x110022, 0.015);
 
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -51,10 +52,11 @@ function start3DScene() {
     0.1,
     1000
   );
-  camera.position.z = 40;
+  camera.position.z = 60;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x110022, 1); // A juego con la niebla
   document.body.appendChild(renderer.domElement);
 
   const light = new THREE.PointLight(0xffffff, 1);
@@ -74,6 +76,42 @@ function start3DScene() {
   // Luz envolvente para hacer que brille más
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
+
+  const nebulas = [];
+
+  const nebulaColors = [0xff66cc, 0x66ccff, 0xcc99ff, 0x99ffcc, 0xffff66];
+
+  for (let i = 0; i < nebulaColors.length; i++) {
+    const light = new THREE.PointLight(nebulaColors[i], 4, 200);
+    light.castShadow = false;
+
+    light.position.set(
+      (Math.random() - 0.5) * 60,
+      (Math.random() - 0.5) * 40,
+      (Math.random() - 0.5) * 60
+    );
+    scene.add(light);
+    //test circulos de nebulosa
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: nebulaColors[i],
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+      })
+    );
+    sphere.position.copy(light.position);
+    scene.add(sphere);
+
+    nebulas.push({
+      light,
+      baseIntensity: Math.random() * 0.5 + 0.5,
+      speed: Math.random() * 0.5 + 0.2,
+      phase: Math.random() * Math.PI * 2,
+      sphere, // Añadimos la esfera para cambiar su color también
+    });
+  }
 
   const loader = new THREE.TextureLoader();
   const totalPhotos = 12;
@@ -124,6 +162,71 @@ function start3DScene() {
   controls.minDistance = 10;
   controls.maxDistance = 100;
 
+  //cometas
+  const cometCount = 5;
+  const comets = [];
+
+  for (let i = 0; i < cometCount; i++) {
+    // Dirección aleatoria
+    const direction = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.05,
+      1
+    ).normalize();
+
+    // Grupo del cometa
+    const cometGroup = new THREE.Group();
+
+    // Cabeza
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    cometGroup.add(head);
+
+    // Cola (geometría apuntando en eje Z en vez de Y)
+    const tailLength = 40;
+    const coneGeometry = new THREE.ConeGeometry(0.3, tailLength, 16);
+    coneGeometry.rotateX(-Math.PI / 2); // ← gira el cono para que apunte en Z
+
+    const tail = new THREE.Mesh(
+      coneGeometry,
+      new THREE.MeshBasicMaterial({
+        color: 0x88ccff,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+      })
+    );
+
+    // Posicionamos la cola detrás de la cabeza en dirección opuesta al movimiento
+    tail.position.z = -tailLength * 0.5;
+
+    // Agrupamos cola y cabeza en una subunidad que podemos rotar completa
+    const cometBody = new THREE.Group();
+    cometBody.add(head);
+    cometBody.add(tail);
+
+    // Hacemos que la parte visual mire en dirección opuesta al movimiento
+    cometBody.lookAt(cometBody.position.clone().add(direction));
+    cometGroup.add(cometBody);
+
+    // Posición inicial aleatoria
+    cometGroup.position.set(
+      (Math.random() - 0.5) * 100,
+      (Math.random() - 0.5) * 60,
+      -100 - Math.random() * 100
+    );
+
+    scene.add(cometGroup);
+
+    comets.push({
+      group: cometGroup,
+      direction,
+      speed: 0.3 + Math.random() * 0.2,
+    });
+  }
+
   function animate() {
     requestAnimationFrame(animate);
 
@@ -136,6 +239,39 @@ function start3DScene() {
       mesh.position.z = orbitRadius * Math.sin(angle);
       mesh.position.y = yOffset;
       mesh.lookAt(0, 0, 0);
+    });
+    nebulas.forEach((nebula) => {
+      const { light, baseIntensity, speed, phase } = nebula;
+      const time = performance.now() * 0.001;
+      nebulas.forEach((nebula, i) => {
+        const { light, baseIntensity, speed, phase } = nebula;
+        const intensity = baseIntensity + 0.5 * Math.sin(time * speed + phase);
+        light.intensity = intensity;
+
+        // Cambio de color con HSL
+        const hue = (time * 30 + i * 60) % 360;
+        const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
+        light.color = color;
+
+        // También cambia la esfera visual (si la usas)
+        if (nebula.sphere) {
+          nebula.sphere.material.color = color;
+          nebula.sphere.material.opacity =
+            0.3 + 0.3 * Math.sin(time * speed + phase);
+        }
+      });
+    });
+    comets.forEach((comet) => {
+      comet.group.position.addScaledVector(comet.direction, comet.speed);
+
+      // Si el cometa pasa de la cámara, lo reiniciamos
+      if (comet.group.position.z > 50) {
+        comet.group.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 60,
+          -100 - Math.random() * 100
+        );
+      }
     });
 
     controls.update();
