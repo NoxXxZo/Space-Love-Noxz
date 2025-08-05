@@ -113,33 +113,87 @@ function start3DScene() {
     });
   }
 
+  const totalRings = 6; //numero de capas o anillos
+  const photosPerRing = 25; // fotos por anillo
+  const orbitBaseRadius = 25; // radio base para el primer anillo
+  const photoGroups = [];
   const loader = new THREE.TextureLoader();
-  const totalPhotos = 12;
+  const totalPhotos = 6;
   const orbitRadius = 25;
   const photos = [];
 
-  for (let i = 0; i < totalPhotos; i++) {
-    const angle = (i / totalPhotos) * Math.PI * 2;
-    const textureIndex = (i % 6) + 1; // Reutiliza las 6 imágenes
-    const texture = loader.load(`assets/images/foto${textureIndex}.jpeg`);
+  for (let ring = 0; ring < totalRings; ring++) {
+    const ringRadius = orbitBaseRadius + ring * 4;
+    const yOffset = (Math.random() - 0.5) * 3; // variación vertical para cada anillo
 
-    const geometry = new THREE.PlaneGeometry(5, 3.5); // Más pequeño que antes
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      side: THREE.DoubleSide,
+    for (let i = 0; i < photosPerRing; i++) {
+      const textureIndex = Math.floor(Math.random() * totalPhotos) + 1;
+      const texture = loader.load(`assets/images/foto${textureIndex}.jpeg`);
+
+      const geometry = new THREE.PlaneGeometry(5, 3.5);
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95,
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+
+      // Rango de dispersión de radios más amplio para desordenar
+      const baseRingRadius = orbitBaseRadius + ring * 4;
+      const ringRadiusMin = baseRingRadius - 2;
+      const ringRadiusMax = baseRingRadius + 2;
+      const actualRadius =
+        ringRadiusMin + Math.random() * (ringRadiusMax - ringRadiusMin);
+
+      // Dispersión angular también
+      const angle = (i / photosPerRing) * Math.PI * 2 + Math.random() * 0.2;
+      const baseAngle = (i / photosPerRing) * Math.PI * 2;
+      //const angle = baseAngle + (Math.random() - 0.5) * 0.2; // Variación angular
+
+      const x = actualRadius * Math.cos(angle);
+      const z = actualRadius * Math.sin(angle);
+      const y = yOffset + (Math.random() - 0.5) * 2;
+
+      mesh.position.set(x, y, z);
+      mesh.userData = { angle, ringRadius: actualRadius, yOffset };
+
+      scene.add(mesh);
+      photos.push(mesh);
+    }
+  }
+  //rocas de colores
+  for (let i = 0; i < 100; i++) {
+    const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
+
+    const particleMaterial = new THREE.MeshBasicMaterial({
+      color,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.6,
+      depthWrite: false,
+      side: THREE.DoubleSide,
     });
 
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(
-      orbitRadius * Math.cos(angle),
-      (Math.random() - 0.5) * 2, // pequeña variación vertical
-      orbitRadius * Math.sin(angle)
+    const size = Math.random() * 1.5 + 0.5;
+    const particle = new THREE.Mesh(
+      new THREE.SphereGeometry(size, 16, 16),
+      particleMaterial.clone()
     );
-    mesh.lookAt(0, 0, 0);
-    scene.add(mesh);
-    photos.push(mesh);
+
+    const angle = Math.random() * Math.PI * 2;
+    const radius = orbitBaseRadius + Math.random() * (totalRings * 4);
+    const yOffset = (Math.random() - 0.5) * 6;
+
+    particle.position.set(
+      radius * Math.cos(angle),
+      yOffset,
+      radius * Math.sin(angle)
+    );
+    particle.userData = { angle, ringRadius: radius, yOffset };
+    particle.lookAt(0, 0, 0);
+    scene.add(particle);
+    photos.push(particle); // para que giren igual que las fotos
   }
 
   const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -231,15 +285,15 @@ function start3DScene() {
     requestAnimationFrame(animate);
 
     const t = performance.now() * 0.0002;
-    photos.forEach((mesh, i) => {
-      const angle = t + i * 0.5;
-      const yOffset = mesh.position.y;
-
-      mesh.position.x = orbitRadius * Math.cos(angle);
-      mesh.position.z = orbitRadius * Math.sin(angle);
+    photos.forEach((mesh) => {
+      const { angle, ringRadius, yOffset } = mesh.userData;
+      const time = t + angle;
+      mesh.position.x = ringRadius * Math.cos(time);
+      mesh.position.z = ringRadius * Math.sin(time);
       mesh.position.y = yOffset;
       mesh.lookAt(0, 0, 0);
     });
+
     nebulas.forEach((nebula) => {
       const { light, baseIntensity, speed, phase } = nebula;
       const time = performance.now() * 0.001;
