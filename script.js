@@ -39,6 +39,11 @@ function drawGalaxy() {
     ctx.fillStyle = `hsl(${i}, 100%, 70%)`;
     ctx.fill();
   }
+  ctx.font = "bold 27px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("🌷Tócame ❤️", centerX, centerY);
   angle += 0.5;
   animationId = requestAnimationFrame(drawGalaxy);
 }
