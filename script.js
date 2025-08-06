@@ -167,15 +167,17 @@ function start3DScene() {
     }
   }
   //texto
+  let textMesh = null;
+  let textAngle = 0;
+  const textRadius = 11;
+  const textSpeed = -0.009; // Velocidad de giro (ajusta a gusto)
 
   //test
   const fontLoader = new FontLoader();
   fontLoader.load(
     "./assets/fonts/helvetiker_bold.typeface.json",
     function (font) {
-      console.log("Font loaded:", font);
-
-      const textGeometry = new TextGeometry(" TE AMO ", {
+      const textGeometry = new TextGeometry("TE AMO", {
         font: font,
         size: 4,
         height: 0.5,
@@ -187,26 +189,14 @@ function start3DScene() {
       });
 
       const neonMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff00ff, // neón fucsia
+        color: 0xff00ff,
         transparent: true,
         opacity: 0.9,
       });
 
-      const textMesh = new THREE.Mesh(textGeometry, neonMaterial);
-
-      const textRadius = 28; // Distancia al centro
-      const initialAngle = Math.random() * Math.PI * 2;
-      textMesh.userData = {
-        angle: initialAngle,
-        radius: textRadius,
-        yOffset: 5, // Altura sobre el planeta
-      };
-
-      textGeometry.center(); // Centra el texto para que gire bien
-
+      textGeometry.center();
+      textMesh = new THREE.Mesh(textGeometry, neonMaterial);
       scene.add(textMesh);
-      photos.push(textMesh); // Para que gire igual que las fotos
-      console.log("Escena después del texto", scene);
     }
   );
 
@@ -374,6 +364,15 @@ function start3DScene() {
         );
       }
     });
+    if (textMesh) {
+      textAngle += textSpeed;
+      const x = textRadius * Math.cos(textAngle);
+      const z = textRadius * Math.sin(textAngle);
+      const y = 5; // Altura fija sobre el planeta
+
+      textMesh.position.set(x, y, z);
+      textMesh.lookAt(0, y, 0); // Siempre mirando al centro
+    }
 
     controls.update();
     renderer.render(scene, camera);
