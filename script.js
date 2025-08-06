@@ -11,6 +11,12 @@ const ctx = canvas.getContext("2d");
 //electrones del planeta
 const electronCount = 3;
 const electrons = [];
+//mensajes cometa
+const cometMessages = ["TE AMO", "ERES LA MEJOR", "SIEMPRE JUNTOS", "MI VIDA"];
+const cometTexts = [];
+const cometSpawnInterval = 5000; // Cada 5 segundos aparecerá uno
+let lastCometSpawnTime = 0;
+let loadedFont = null;
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -51,6 +57,64 @@ canvas.addEventListener("click", () => {
 function start3DScene() {
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x110022, 0.005);
+
+  //cometas texto
+  function createCometText(message) {
+    const group = new THREE.Group();
+
+    const textGeometry = new TextGeometry(message, {
+      font: loadedFont, // ← Necesitas tener la fuente cargada globalmente
+      size: 2,
+      height: 0.2,
+      curveSegments: 12,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.05,
+      bevelSegments: 3,
+    });
+    textGeometry.center();
+
+    const textMaterial = new THREE.MeshBasicMaterial({
+      color: 0xf71b22,
+      transparent: true,
+      opacity: 0.9,
+    });
+
+    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+    group.add(textMesh);
+
+    // Cola del cometa (un cono estirado)
+    const tailGeometry = new THREE.ConeGeometry(0.3, 6, 16);
+    tailGeometry.rotateX(-Math.PI / 2);
+
+    const tailMaterial = new THREE.MeshBasicMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    });
+
+    const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+    tail.position.z = -3; // detrás del texto
+    group.add(tail);
+
+    // Posición inicial (aleatoria en X y Y, detrás de la cámara)
+    group.position.set(
+      (Math.random() - 0.5) * 60,
+      (Math.random() - 0.5) * 40,
+      -100
+    );
+
+    // Dirección de movimiento hacia la cámara con un poco de variación
+    const direction = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.1,
+      (Math.random() - 0.5) * 0.1,
+      1
+    ).normalize();
+
+    cometTexts.push({ group, direction, speed: 0.5 });
+    scene.add(group);
+  }
 
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -223,6 +287,7 @@ function start3DScene() {
   fontLoader.load(
     "./assets/fonts/helvetiker_bold.typeface.json",
     function (font) {
+      loadedFont = font; // Guardar la fuente cargada globalmente
       const textGeometry = new TextGeometry("TE AMO", {
         font: font,
         size: 4,
@@ -366,6 +431,15 @@ function start3DScene() {
 
   function animate() {
     requestAnimationFrame(animate);
+    //cometas texto
+    const currentTime = performance.now();
+
+    if (currentTime - lastCometSpawnTime > cometSpawnInterval && loadedFont) {
+      const message =
+        cometMessages[Math.floor(Math.random() * cometMessages.length)];
+      createCometText(message);
+      lastCometSpawnTime = currentTime;
+    }
 
     const t = performance.now() * 0.0002;
     photos.forEach((mesh) => {
@@ -377,34 +451,34 @@ function start3DScene() {
       mesh.lookAt(0, 0, 0);
     });
 
-    nebulas.forEach((nebula) => {
+    const time = performance.now() * 0.001;
+
+    nebulas.forEach((nebula, i) => {
       const { light, baseIntensity, speed, phase } = nebula;
-      const time = performance.now() * 0.001;
-      nebulas.forEach((nebula, i) => {
-        const { light, baseIntensity, speed, phase } = nebula;
-        const intensity = baseIntensity + 0.5 * Math.sin(time * speed + phase);
-        light.intensity = intensity;
+      const intensity = baseIntensity + 0.5 * Math.sin(time * speed + phase);
+      light.intensity = intensity;
 
-        // Cambio de color con HSL
-        const hue = (time * 20) % 360;
-        const color = new THREE.Color(`hsl(${hue}, 100%, 60%)`);
-        light.color = color;
-        planetMaterial.color = color;
-        const emissiveIntensity = 0.5 + 0.5 * Math.sin(time * 2); // pulso lento
-        planetMaterial.emissiveIntensity = emissiveIntensity;
+      // Cambio de color con HSL
+      const hue = (time * 20) % 360;
+      const color = new THREE.Color(`hsl(${hue}, 100%, 60%)`);
+      light.color = color;
 
-        planetMaterial.emissive = new THREE.Color(
-          `hsl(${(hue + 60) % 360}, 100%, 30%)`
-        );
+      planetMaterial.color = color;
+      const emissiveIntensity = 0.5 + 0.5 * Math.sin(time * 2); // pulso lento
+      planetMaterial.emissiveIntensity = emissiveIntensity;
 
-        // También cambia la esfera visual (si la usas)
-        if (nebula.sphere) {
-          nebula.sphere.material.color = color;
-          nebula.sphere.material.opacity =
-            0.3 + 0.3 * Math.sin(time * speed + phase);
-        }
-      });
+      planetMaterial.emissive = new THREE.Color(
+        `hsl(${(hue + 60) % 360}, 100%, 30%)`
+      );
+
+      // Cambiar la esfera nebulosa visual también
+      if (nebula.sphere) {
+        nebula.sphere.material.color = color;
+        nebula.sphere.material.opacity =
+          0.3 + 0.3 * Math.sin(time * speed + phase);
+      }
     });
+
     comets.forEach((comet) => {
       comet.group.position.addScaledVector(comet.direction, comet.speed);
 
@@ -421,10 +495,24 @@ function start3DScene() {
       textAngle += textSpeed;
       const x = textRadius * Math.cos(textAngle);
       const z = textRadius * Math.sin(textAngle);
-      const y = 5; // Altura fija sobre el planeta
+      const y = 6; // Altura fija sobre el planeta
 
       textMesh.position.set(x, y, z);
       textMesh.lookAt(camera.position); // Siempre mirando al centro
+    }
+    //texto cometa
+    for (let i = cometTexts.length - 1; i >= 0; i--) {
+      const comet = cometTexts[i];
+      comet.group.position.addScaledVector(comet.direction, comet.speed);
+
+      // Hacer que el texto mire siempre hacia la cámara
+      comet.group.lookAt(camera.position);
+
+      // Si ya pasó la cámara, eliminarlo
+      if (comet.group.position.z > 50) {
+        scene.remove(comet.group);
+        cometTexts.splice(i, 1);
+      }
     }
 
     //electrones
