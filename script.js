@@ -55,6 +55,9 @@ canvas.addEventListener("click", () => {
 });
 
 function start3DScene() {
+  let isCameraAnimating = false;
+  let cameraAnimationStart = 0;
+
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x110022, 0.005);
 
@@ -123,6 +126,11 @@ function start3DScene() {
     1000
   );
   camera.position.z = 60;
+
+  //movimiento de camara
+  camera.position.z = 10; // Empieza cerca
+  isCameraAnimating = true;
+  cameraAnimationStart = performance.now();
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -534,6 +542,25 @@ function start3DScene() {
       );
       e.group.lookAt(e.group.position.clone().add(tangent));
     });
+    //camara
+    if (isCameraAnimating) {
+      const elapsed = (performance.now() - cameraAnimationStart) / 1000; // segundos
+
+      if (elapsed < 2) {
+        // Etapa 1: Alejamiento
+        camera.position.z = 10 + (elapsed / 2) * 50; // Va de z=10 a z=60 en 2s
+      } else if (elapsed < 4) {
+        // Etapa 2: Movimiento vertical (hacia arriba)
+        const progress = (elapsed - 2) / 2;
+        camera.position.y = Math.sin(progress * Math.PI) * 40; // Sube hasta y=5 y baja
+        camera.position.z = 60; // Mantiene z fijo en 60
+      } else {
+        // Finaliza la animación y activa controles normales
+        isCameraAnimating = false;
+        camera.position.set(0, 0, 60); // Posición final
+      }
+    }
+
     //cambio de color del planeta
 
     controls.update();
