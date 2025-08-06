@@ -8,6 +8,9 @@ import { TextGeometry } from "./libs/TextGeometry.js";
 const canvas = document.getElementById("galaxy-canvas");
 const music = document.getElementById("bg-music");
 const ctx = canvas.getContext("2d");
+//electrones del planeta
+const electronCount = 3;
+const electrons = [];
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -79,6 +82,49 @@ function start3DScene() {
   // Luz envolvente para hacer que brille más
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
+
+  //electrones
+  for (let i = 0; i < electronCount; i++) {
+    const group = new THREE.Group();
+
+    // Esfera (electrón)
+    const electron = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xf71b70 })
+    );
+    group.add(electron);
+
+    // Estela (pequeña cola estilo cometa)
+    const tailLength = 3;
+    const tailGeometry = new THREE.ConeGeometry(0.1, tailLength, 12);
+    tailGeometry.rotateX(-Math.PI / 2); // apuntar en Z
+
+    const tail = new THREE.Mesh(
+      tailGeometry,
+      new THREE.MeshBasicMaterial({
+        color: 0xf71b70,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      })
+    );
+    tail.position.z = -tailLength * 0.5; // posicionar detrás del electrón
+    group.add(tail);
+
+    // Parámetros de movimiento del electrón
+    const radius = 10 + Math.random() * 5; // órbita alrededor del planeta
+    const speed = 0.02 + Math.random() * 0.02; // velocidad de rotación
+    const inclination = Math.random() * Math.PI; // inclinación orbital
+
+    electrons.push({
+      group,
+      radius,
+      angle: Math.random() * Math.PI * 2,
+      speed,
+      inclination,
+    });
+    scene.add(group);
+  }
 
   const nebulas = [];
 
@@ -169,7 +215,7 @@ function start3DScene() {
   //texto
   let textMesh = null;
   let textAngle = 0;
-  const textRadius = 11;
+  const textRadius = 21;
   const textSpeed = -0.009; // Velocidad de giro (ajusta a gusto)
 
   //test
@@ -201,8 +247,8 @@ function start3DScene() {
   );
 
   //rocas de colores
-  for (let i = 0; i < 100; i++) {
-    const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
+  for (let i = 0; i < 30; i++) {
+    const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 40%)`);
 
     const particleMaterial = new THREE.MeshBasicMaterial({
       color,
@@ -340,9 +386,16 @@ function start3DScene() {
         light.intensity = intensity;
 
         // Cambio de color con HSL
-        const hue = (time * 30 + i * 60) % 360;
-        const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
+        const hue = (time * 20) % 360;
+        const color = new THREE.Color(`hsl(${hue}, 100%, 60%)`);
         light.color = color;
+        planetMaterial.color = color;
+        const emissiveIntensity = 0.5 + 0.5 * Math.sin(time * 2); // pulso lento
+        planetMaterial.emissiveIntensity = emissiveIntensity;
+
+        planetMaterial.emissive = new THREE.Color(
+          `hsl(${(hue + 60) % 360}, 100%, 30%)`
+        );
 
         // También cambia la esfera visual (si la usas)
         if (nebula.sphere) {
@@ -371,8 +424,29 @@ function start3DScene() {
       const y = 5; // Altura fija sobre el planeta
 
       textMesh.position.set(x, y, z);
-      textMesh.lookAt(0, y, 0); // Siempre mirando al centro
+      textMesh.lookAt(camera.position); // Siempre mirando al centro
     }
+
+    //electrones
+    electrons.forEach((e) => {
+      e.angle += e.speed;
+
+      // Calcular posición orbital inclinada
+      const x = e.radius * Math.cos(e.angle);
+      const y = Math.sin(e.inclination) * e.radius * Math.sin(e.angle);
+      const z = Math.cos(e.inclination) * e.radius * Math.sin(e.angle);
+
+      e.group.position.set(x, y, z);
+
+      // Hacer que la estela siempre apunte en dirección opuesta al movimiento
+      const tangent = new THREE.Vector3(
+        -Math.sin(e.angle),
+        0,
+        Math.cos(e.angle)
+      );
+      e.group.lookAt(e.group.position.clone().add(tangent));
+    });
+    //cambio de color del planeta
 
     controls.update();
     renderer.render(scene, camera);
