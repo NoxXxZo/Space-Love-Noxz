@@ -1,6 +1,9 @@
 import * as THREE from "./libs/three.module.js";
 console.log("THREE is working:");
 import { OrbitControls } from "./libs/OrbitControls.js";
+//texto
+import { FontLoader } from "./libs/FontLoader.js";
+import { TextGeometry } from "./libs/TextGeometry.js";
 
 const canvas = document.getElementById("galaxy-canvas");
 const music = document.getElementById("bg-music");
@@ -44,7 +47,7 @@ canvas.addEventListener("click", () => {
 
 function start3DScene() {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x110022, 0.015);
+  scene.fog = new THREE.FogExp2(0x110022, 0.005);
 
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -64,7 +67,7 @@ function start3DScene() {
   scene.add(light);
 
   // Planeta brillante central
-  const planetGeometry = new THREE.SphereGeometry(5, 64, 64);
+  const planetGeometry = new THREE.SphereGeometry(8, 64, 64);
   const planetMaterial = new THREE.MeshPhongMaterial({
     color: 0xf5401b,
     emissive: 0xf5ac1b,
@@ -113,9 +116,9 @@ function start3DScene() {
     });
   }
 
-  const totalRings = 6; //numero de capas o anillos
-  const photosPerRing = 25; // fotos por anillo
-  const orbitBaseRadius = 25; // radio base para el primer anillo
+  const totalRings = 5; //numero de capas o anillos
+  const photosPerRing = 10; // fotos por anillo
+  const orbitBaseRadius = 22; // radio base para el primer anillo
   const photoGroups = [];
   const loader = new THREE.TextureLoader();
   const totalPhotos = 6;
@@ -163,6 +166,50 @@ function start3DScene() {
       photos.push(mesh);
     }
   }
+  //texto
+
+  //test
+  const fontLoader = new FontLoader();
+  fontLoader.load(
+    "./assets/fonts/helvetiker_bold.typeface.json",
+    function (font) {
+      console.log("Font loaded:", font);
+
+      const textGeometry = new TextGeometry(" TE AMO ", {
+        font: font,
+        size: 4,
+        height: 0.5,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.1,
+        bevelSize: 0.1,
+        bevelSegments: 5,
+      });
+
+      const neonMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff00ff, // neón fucsia
+        transparent: true,
+        opacity: 0.9,
+      });
+
+      const textMesh = new THREE.Mesh(textGeometry, neonMaterial);
+
+      const textRadius = 28; // Distancia al centro
+      const initialAngle = Math.random() * Math.PI * 2;
+      textMesh.userData = {
+        angle: initialAngle,
+        radius: textRadius,
+        yOffset: 5, // Altura sobre el planeta
+      };
+
+      textGeometry.center(); // Centra el texto para que gire bien
+
+      scene.add(textMesh);
+      photos.push(textMesh); // Para que gire igual que las fotos
+      console.log("Escena después del texto", scene);
+    }
+  );
+
   //rocas de colores
   for (let i = 0; i < 100; i++) {
     const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
@@ -170,7 +217,7 @@ function start3DScene() {
     const particleMaterial = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.3,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
